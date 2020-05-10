@@ -40,4 +40,73 @@ function MainChoice(){
         }   
     })
 }
+
+function AddDepartment()
+{
+    inquirer.prompt([
+        {
+            type: "input",
+            name: "departmentName",
+            message: "What is the department's name?"
+        }
+    ]).then(data => {
+        departmentName = data.departmentName;
+        const query = connection.query(
+            "INSERT INTO departments SET ?",
+            {departmentName: departmentName},
+            // Here is the callback function
+            function(err, res) {
+              if (err) throw err;
+              console.log(res.affectedRows + " department inserted!\n"); // optional
+              res.json({status: "ok"});  // sample JSON response to client (highly changeable)
+              MainChoice();
+            }
+          );
+    });
+}
+
+function AddRole()
+{
+    connection.query("SELECT * FROM departments",data => {
+        const departmentNames = data.map(Element => Element.name);
+        inquirer.prompt([
+            {
+                type: "input",
+                name: "title",
+                message: "What is the title of this positiion?"
+            },
+            {
+                name: "salary",
+                message: "What is this position's yearly salary?"
+            },
+            {
+                type: "list",
+                name: "department",
+                message: "Which department is this position part of?",
+                choices: departmentNames
+            }
+        ]).then(answers => {
+            let targetId = -1;
+            data.foreach(element => {
+                if(element.name === answers.department)
+                {
+                    targetId = element.id;
+                }
+            })
+            const query = connection.query(
+                "INSERT INTO roles SET ?",
+                // Here is the object w/ data to be inserted
+                { title: answers.title, salary: answers.salary, department_id: targetId},
+                // Here is the callback function
+                function(err, res) {
+                  if (err) throw err;
+                  console.log(res.affectedRows + " role inserted!\n"); // optional
+                  res.json({status: "ok"});  // sample JSON response to client (highly changeable)
+                }
+              );// 
+              
+        });
+    })
+}
+
 MainChoice();
