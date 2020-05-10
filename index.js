@@ -1,6 +1,8 @@
 const mysql = require("mysql");
 const inquirer = require("inquirer");
 const cTable = require("console.table");
+const fs = require("fs");
+const path = require("path");
 
 let connection = mysql.createConnection({
     host: "localhost",
@@ -9,24 +11,34 @@ let connection = mysql.createConnection({
     database: "employees_db"
 })
 
+function Init()
+{
+    //connection.query(fs.readFileSync(path.join(__dirname,"seed.sql")));
+    MainChoice();
+}
+
 function MainChoice(){
     inquirer.prompt([
         {
             type: "list",
-            name: "mainChoice",
+            name: "MainChoice",
             message: "What would you like to do?",
             choices: ["Add a new department","View your departments","Add a new employee role","View employee roles","Add an employee","View current employees","Update an employee's role","Quit"]
         }
     ]).then(data =>{
-        switch(data.mainChoice)
+        switch(data.MainChoice)
         {
             case "Add a new department":
+                AddDepartment();
                 break;
             case "View your departments":
+                DisplayDepartments();
                 break;
             case "Add a new employee role":
+                AddRole();
                 break;
             case "View employee roles":
+                DisplayRoles();
                 break;
             case "Add an employee":
                 break;
@@ -57,8 +69,7 @@ function AddDepartment()
             // Here is the callback function
             function(err, res) {
               if (err) throw err;
-              console.log(res.affectedRows + " department inserted!\n"); // optional
-              res.json({status: "ok"});  // sample JSON response to client (highly changeable)
+              console.log(res.affectedRows + " department inserted!\n");
               MainChoice();
             }
           );
@@ -101,7 +112,7 @@ function AddRole()
                 function(err, res) {
                   if (err) throw err;
                   console.log(res.affectedRows + " role inserted!\n"); // optional
-                  res.json({status: "ok"});  // sample JSON response to client (highly changeable)
+                  MainChoice();
                 }
               );// 
               
@@ -109,4 +120,20 @@ function AddRole()
     })
 }
 
-MainChoice();
+function DisplayDepartments()
+{
+    connection.query("SELECT * FROM departments", data =>{
+        console.log(data);
+        MainChoice();
+    })
+}
+
+function DisplayRoles()
+{
+    connection.query("SELECT * FROM roles", data =>{
+        console.log(data);
+        MainChoice();
+    })
+}
+
+Init();
