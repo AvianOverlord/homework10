@@ -217,7 +217,7 @@ function AddEmployee()
         message: "What is this employee's last name?"
     }
     ]).then(data =>{
-        employee = {first_name: data.firstName, last_name: data.lastName, new: true};
+        employee = {firstName: data.firstName, lastName: data.lastName, new: true};
         SetEmployeeRole(employee);
     });
 }
@@ -240,7 +240,7 @@ function SetEmployeeRole(employee)
         }
         ]).then(data => {
             connection.query("SELECT id FROM roles WHERE title = ?", data.jobTitle, function(err, roleIDres){
-                employee.titleId = roleIDres.id;
+                employee.titleId = roleIDres[0].id;
                 SetEmployeeManager(employee);
             })
         });
@@ -284,10 +284,11 @@ function SetEmployeeManager(employee)
 
 function SetEmployeeData(employee)
 {
+    console.log(`Name: ${employee.firstName} ${employee.lastName}, Role: ${employee.titleId}`);
     if(employee.new && employee.manager)
     {
-        const query = connection.query(
-            "INSERT INTO employees SET ?",{first_name: employee.firstName, last_name: employee.lastName, role_id: employee.titleId, manager_id: employee.manager},
+        connection.query(
+            "INSERT INTO employees (first_name, last_name, role_id, manager_id) VALUES ('" +  employee.firstName + "','" + employee.lastName + "','" + employee.titleId + "','" + employee.manager + "')",
             // Here is the callback function
             function(err, res) {
               if (err) throw err;
@@ -298,8 +299,8 @@ function SetEmployeeData(employee)
     }
     else if(employee.new)
     {
-        const query = connection.query(
-            "INSERT INTO employees SET ?",{first_name: employee.firstName, last_name: employee.lastName, role_id: employee.titleId},
+        connection.query(
+            "INSERT INTO employees (first_name, last_name, role_id) VALUES ('" +  employee.firstName + "','" + employee.lastName + "','" + employee.titleId + "')",
             // Here is the callback function
             function(err, res) {
               if (err) throw err;
