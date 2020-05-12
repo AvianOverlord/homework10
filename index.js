@@ -58,67 +58,43 @@ function MainChoice(){
 
 function UpdateEmployee()
 {
-    connection.query("SELECT * FROM employees", function(err, allEmpResults)
+    connection.query("SELECT * FROM employees",function(err, employeeRes)
     {
-        if(err) throw err;
-        inquirer.prompt([{
-            type: "rawlist",
-            name: "employee",
-            message: "Which employee do you want to update?",
-            choices: function() {
-                let choiceArray = [];
-                for (let i =0; i < allEmpResults.length; i++)
+        if(employeeRes.length === 0)
+        {
+            console.log("You need employees before updating them!");
+            MainChoice();
+        }
+        else
+        {
+            inquirer.prompt([
                 {
-                    choiceArray.push(allEmpResults[i].last_name); //Ask if if there's a way to add a value or id to these choices
+                    type: "rawlist",
+                    name: "chosenEmployee",
+                    message: "Which employee do you want to update?",
+                    choices: function() {
+                        let choiceArray = [];
+                        for (let i =0; i < employeeRes.length; i++)
+                        {
+                            choiceArray.push(employeeRes[i].last_name);
+                        }
+                        return choiceArray;
+                    }
                 }
-                return choiceArray;
-             }
-        }]).then(employeeAnswer =>{
-            connection.query(`SELECT id FROM employees WHERE last_name = ${employeeAnswer.employee}`,function(err,resultsID){
-                let employeeID = resultsID[0];
-                connection.query("SELECT * FROM roles", function(err, allTitlesResult){
+            ]).then(data => {
+                connection.query("SELECT id FROM employees WHERE last_name = ?", data.chosenEmployee, function(err,res){
                     if(err) throw err;
-                    inquirer.prompt([{
-                        type: "rawlist",
-                        name: "role",
-                        message: "What is the employee's new role?",
-                        choices: function() {
-                            let choiceArray = [];
-                            for (let i =0; i < allTitlesResult.length; i++)
-                            {
-                                choiceArray.push(allTitlesResult[i].title); //Ask if if there's a way to add a value or id to these choices
-                            }
-                            return choiceArray;
-                         }
-                    }]).then(roleAnswer =>{
-                        connection.query(`SELECT id FROM roles WHERE title=${roleAnswer}`, function(err,roleID){
-                            connection.query(
-                                "UPDATE auctions SET ? WHERE ?",
-                                [
-                                  {
-                                    role_id: roleID[0]
-                                  },
-                                  {
-                                    id: employeeID
-                                  }
-                                ],
-                                function(error) {
-                                  if (error) throw err;
-                                  console.log("Role updated successfully!");
-                                  MainChoice();
-                                }
-                              );
-                        });
-                    });
+                    employee = {new: false, id: res[0].id};
+                    SetEmployeeRole(employee);
                 });
             });
-        });
+        }
     });
 }
 
 function DisplayEmployees()
 {
-    connection.query("SELECT last_name, first_name FROM employees", function(err, results) //Ask about inserting in other files
+    connection.query("SELECT * FROM employees", function(err, results) //Ask about inserting in other files
     {
         if(err) throw err;
         console.table(results);
@@ -143,7 +119,7 @@ function AddDepartment()
             function(err) {
               if (err) throw err;
               console.log("Your department was created successfully!");
-              start();
+              MainChoice();
             }
         );
     });
@@ -186,7 +162,8 @@ function AddRole()
             ]).then(answers => {
                 connection.query(`SELECT id FROM departments WHERE departmentName='${answers.department}'`,function(err,idResult){
                     if(err) throw err;
-                    const departmentID = idResult[0];
+                    const departmentID = idResult[0].id;
+                    console.log("D-ID: " + departmentID);
                     connection.query(
                         "INSERT INTO roles SET ?",
                         {
@@ -229,141 +206,132 @@ function DisplayRoles()
 
 function AddEmployee()
 {
-    connection.query("SELECT * FROM roles", function(err, results)
+    inquirer.prompt([{
+        type: "input",
+        name: "firstName",
+        message: "What is this employee's first name?"
+    },
     {
-        connection.query("SELECT * FROM employees", function(err, eResults)
-        {
-            if(results.length === 0)
+        type: "input",
+        name: "lastName",
+        message: "What is this employee's last name?"
+    }
+    ]).then(data =>{
+        employee = {first_name: data.firstName, last_name: data.lastName, new: true};
+        SetEmployeeRole(employee);
+    });
+}
+
+function SetEmployeeRole(employee)
+{
+    connection.query("SELECT title FROM roles",function(err, roleResults){
+        inquirer.prompt([{
+            type: "rawlist",
+            name: "jobTitle",
+            message: "What is this employee's job title?",
+            choices: function() {
+                let choiceArray = [];
+                for (let i =0; i < roleResults.length; i++)
+                {
+                    choiceArray.push(roleResults[i].title); //Ask if if there's a way to add a value or id to these choices
+                }
+                return choiceArray;
+             }
+        }
+        ]).then(data => {
+            connection.query("SELECT id FROM roles WHERE title = ?", data.jobTitle, function(err, roleIDres){
+                employee.titleId = roleIDres.id;
+                SetEmployeeManager(employee);
+            })
+        });
+    });
+}
+
+function SetEmployeeManager(employee)
+{
+    connection.query("SELECT last_name FROM employees",function(err, managerResults){
+        inquirer.prompt([
             {
-                console.log("Establish roles first");
+                type: "rawlist",
+                name: "manager",
+                message: "Who is this employee's manager?",
+                choices: function() {
+                    let choiceArray = [];
+                    choiceArray.push("No one.");
+                    for (let i =0; i < managerResults.length; i++)
+                    {
+                        choiceArray.push(managerResults[i].last_name); //Ask if if there's a way to add a value or id to these choices
+                    }
+                    return choiceArray;
+                 }
+            }
+        ]).then(data => {
+            if(data.manager !== "No one.")
+            {
+                connection.query("SELECT id FROM employees WHERE last_name = ?", data.manager,function(err,managerIdRes)
+                {
+                    employee.manager = managerIdRes[0].id;
+                    SetEmployeeData(employee);
+                });
             }
             else
             {
-                inquirer.prompt([
-                    {
-                        name: "role",
-                        type: "rawlist",
-                        choices: function() {
-                            let choiceArray = [];
-                            for (let i =0; i < results.length; i++)
-                                {
-                                choiceArray.push(results[i].title); //Ask if if there's a way to add a value or id to these choices
-                                }
-                            return choiceArray;
-                            },
-                        message: "Which job will this employee be doing?"
-                    },
-                    {
-                        type: "input",
-                        name: "firstName",
-                        message: "What is this employee's first name?"
-                    },
-                    {
-                        type: "input",
-                        name: "lastName",
-                        message: "What is this employee's last name?"
-                    },
-                    {
-                        name: "manager",
-                        type: "rawlist",
-                        choics: function() {
-                            let choiceArray = [];
-                            choiceArray.push("No one");
-                            for (let i =0; i < eResults.length; i++)
-                            {
-                            choiceArray.push(eResults[i].last_name); //Ask if if there's a way to add a value or id to these choices
-                            }
-                            return choiceArray;
-                        },
-                        message: "Who is this employee's manager?"
-                    }
-                    ]).then
-                    ( inquirer.prompt([
-                        {
-                            name: "role",
-                            type: "rawlist",
-                            choices: function() {
-                                let choiceArray = [];
-                                for (let i =0; i < results.length; i++)
-                                    {
-                                    choiceArray.push(results[i].title); //Ask if if there's a way to add a value or id to these choices
-                                    }
-                                return choiceArray;
-                                },
-                            message: "Which job will this employee be doing?"
-                        },
-                        {
-                            type: "input",
-                            name: "firstName",
-                            message: "What is this employee's first name?"
-                        },
-                        {
-                            type: "input",
-                            name: "lastName",
-                            message: "What is this employee's last name?"
-                        },
-                        {
-                            name: "manager",
-                            type: "rawlist",
-                            choics: function() {
-                                let choiceArray = [];
-                                choiceArray.push("No one");
-                                for (let i =0; i < eResults.length; i++)
-                                {
-                                choiceArray.push(eResults[i].last_name); //Ask if if there's a way to add a value or id to these choices
-                                }
-                                return choiceArray;
-                            },
-                            message: "Who is this employee's manager?"
-                        }
-                        ]).then(answers => {
-                            connection.query(`SELECT id FROM roles WHERE title='${answers.title}'`,function(err,idResult){
-                                if(err) throw err;
-                                const titleID = idResult[0];
-                                if(answers.manager === "No one")
-                                {
-                                    connection.query(
-                                        "INSERT INTO employees SET ?",
-                                        {
-                                            first_name: answers.firstName,
-                                            last_name: answers.lastName,
-                                            role_id: titleID
-                                        },
-                                        function(err) {
-                                        if (err) throw err;
-                                        console.log("Employee added.");
-                                        MainChoice();
-                                        }
-                                    );//
-                                }
-                                else
-                                {
-                                    connection.query(`SELECT id FROM employees WHERE last_name = ${answers.manager}`, function(err,idResultManager)
-                                    {
-                                        if(err) throw err;
-                                        const managerID = idResultManager[0];
-                                        connection.query(
-                                            "INSERT INTO employees SET ?",
-                                            {
-                                                first_name: answers.firstName,
-                                                last_name: answers.lastName,
-                                                role_id: titleID,
-                                                manager_id: managerID
-                                            },
-                                            function(err) {
-                                            if (err) throw err;
-                                            console.log("Employee added.");
-                                            MainChoice();
-                                            }
-                                        );
-                                    })
-                                }
-                  });
-                }));//
-            }//
-        });//     
-    });//
-}//
+                SetEmployeeData(employee);
+            }
+        });
+    });
+}
+
+function SetEmployeeData(employee)
+{
+    if(employee.new && employee.manager)
+    {
+        const query = connection.query(
+            "INSERT INTO employees SET ?",{first_name: employee.firstName, last_name: employee.lastName, role_id: employee.titleId, manager_id: employee.manager},
+            // Here is the callback function
+            function(err, res) {
+              if (err) throw err;
+              console.log("Employee Added");
+              MainChoice();
+            }
+          );
+    }
+    else if(employee.new)
+    {
+        const query = connection.query(
+            "INSERT INTO employees SET ?",{first_name: employee.firstName, last_name: employee.lastName, role_id: employee.titleId},
+            // Here is the callback function
+            function(err, res) {
+              if (err) throw err;
+              console.log("Employee Added");
+              MainChoice();
+            }
+          );
+    }
+    else
+    {
+        const query = connection.query(
+            "UPDATE <tablename> SET ? WHERE ?",
+            [
+              // here is the data we want to change/update
+              {
+                role_id: employee.titleId,
+                manager_id: employee.manager
+              },
+              // here are the conditions for which records get changed
+              {
+                id: employee.id
+              }
+            ],
+            // callback function
+            function(err, res) {
+              if (err) throw err;
+              console.log("Employee Updated");  // optional
+              MainChoice();
+            }
+          );
+    }
+}
 
 Init();
 
