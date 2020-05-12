@@ -23,7 +23,7 @@ function MainChoice(){
             type: "list",
             name: "MainChoice",
             message: "What would you like to do?",
-            choices: ["Add a new department","View your departments","Add a new employee role","View employee roles","Add an employee","View current employees","Update an employee's role","Quit"]
+            choices: ["Add a new department","View your departments","Add a new employee role","View employee roles","Add an employee","View your employees","Update an employee's role","Quit"]
         }
     ]).then(data =>{
         switch(data.MainChoice)
@@ -99,7 +99,7 @@ function DisplayEmployees()
         if(err) throw err;
         console.table(results);
         MainChoice();
-    })
+    });
 }
 
 function AddDepartment()
@@ -284,7 +284,6 @@ function SetEmployeeManager(employee)
 
 function SetEmployeeData(employee)
 {
-    console.log(`Name: ${employee.firstName} ${employee.lastName}, Role: ${employee.titleId}`);
     if(employee.new && employee.manager)
     {
         connection.query(
@@ -312,7 +311,7 @@ function SetEmployeeData(employee)
     else
     {
         const query = connection.query(
-            "UPDATE <tablename> SET ? WHERE ?",
+            "UPDATE employees SET ? WHERE ?",
             [
               // here is the data we want to change/update
               {
